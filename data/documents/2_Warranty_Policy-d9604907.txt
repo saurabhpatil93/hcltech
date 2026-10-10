@@ -1,5 +1,0 @@
-FICTIONAL RETAILER: Northstar Market
-WARRANTY POLICY — version 1.0, effective 2026-01-01
-Section 2.1: Warranty duration is the number of months recorded for the product SKU in the catalogue. Zero months means no manufacturer warranty is recorded.
-Section 2.2: Warranty starts on the recorded delivery date. Do not promise a repair or replacement not specified in this policy.
-Section 4.1: Warranty status does not itself determine return eligibility.
