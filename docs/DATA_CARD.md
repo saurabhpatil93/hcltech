@@ -1,0 +1,2 @@
+# Data card
+Fictional Northstar Market dataset for hackathon testing. Contains synthetic customers, products, orders, items, returns, and fictional policy documents. The generator uses a fixed Python seed and no real personal data. **Disclosure:** it is not itself an LLM-generated dataset, although it prints a prompt for the requested synthetic data. If organisers strictly require LLM generation, use an approved LLM, preserve the exact prompt/model/output and validate the output before loading. For demo/evaluation only, not production decisions.

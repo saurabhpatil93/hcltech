@@ -1,0 +1,2 @@
+return_id,order_id,sku,requested_on,reason,status,refund_amount
+R-000001,O-100003,SKU-E003,2026-10-01,DEFECTIVE,REQUESTED,0
