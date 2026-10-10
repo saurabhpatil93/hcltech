@@ -91,6 +91,42 @@ try:
         )
     else:
         st.caption('No documents have been indexed yet.')
+    if registered_sources:
+        source_by_id = {source['doc_id']: source for source in registered_sources}
+        selected_doc_id = st.selectbox(
+            'Document to delete',
+            options=list(source_by_id),
+            format_func=lambda doc_id: (
+                f"{source_by_id[doc_id]['filename']} ({doc_id})"
+            ),
+        )
+        st.warning(
+            'Deleting a document also removes its stored file, vector chunks, '
+            'and rules registered to that document.'
+        )
+        confirm_delete = st.checkbox(
+            f"Confirm deletion of {selected_doc_id}",
+            key=f'confirm_delete_{selected_doc_id}',
+        )
+        if st.button('Delete indexed document', disabled=not confirm_delete):
+            try:
+                delete_response = requests.delete(
+                    f'{API}/sources/{selected_doc_id}',
+                    headers=admin_headers(),
+                    timeout=30,
+                )
+                delete_response.raise_for_status()
+                deleted = delete_response.json()
+                st.success(
+                    f"Deleted {deleted['doc_id']}: {deleted['deleted_chunks']} "
+                    f"vector chunks and {deleted['deleted_rules']} rules removed."
+                )
+                st.rerun()
+            except requests.HTTPError as exc:
+                detail = exc.response.text if exc.response is not None else str(exc)
+                st.error(f'Document deletion failed: {detail}')
+            except requests.RequestException as exc:
+                st.error(f'Could not reach the deletion API: {exc}')
 except requests.RequestException as exc:
     st.error(f'Could not load indexed documents: {exc}')
 

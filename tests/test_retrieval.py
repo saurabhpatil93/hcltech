@@ -1,4 +1,7 @@
+import sqlite3
 from contextlib import contextmanager
+
+import pytest
 
 from app.services import retrieval
 
@@ -94,3 +97,94 @@ def test_reingesting_document_removes_stale_chunks_without_removing_other_docs(
         record['metadata']['doc_id'] == 'policy-two'
         for record in vector_collection.records.values()
     )
+
+
+def test_delete_document_removes_file_vectors_source_and_registered_rules(
+    tmp_path, monkeypatch
+):
+    docs_dir = tmp_path / 'documents'
+    docs_dir.mkdir()
+    document_path = docs_dir / 'policy-one.txt'
+    document_path.write_text('Policy text.', encoding='utf-8')
+    database = sqlite3.connect(':memory:')
+    database.row_factory = sqlite3.Row
+    database.executescript(
+        """
+        CREATE TABLE source_register (doc_id TEXT PRIMARY KEY, filename TEXT NOT NULL);
+        CREATE TABLE rule_registry (source_doc_id TEXT NOT NULL);
+        INSERT INTO source_register VALUES ('policy-one', 'policy-one.txt');
+        INSERT INTO rule_registry VALUES ('policy-one');
+        INSERT INTO rule_registry VALUES ('other-policy');
+        """
+    )
+    vector_collection = FakeCollection()
+    vector_collection.records['chunk-one'] = {
+        'document': 'Policy text.',
+        'metadata': {'doc_id': 'policy-one'},
+        'embedding': [1.0],
+    }
+    vector_collection.records['chunk-two'] = {
+        'document': 'Other policy.',
+        'metadata': {'doc_id': 'other-policy'},
+        'embedding': [1.0],
+    }
+
+    @contextmanager
+    def fake_connect():
+        yield database
+        database.commit()
+
+    monkeypatch.setattr(retrieval, 'DOCS_DIR', docs_dir)
+    monkeypatch.setattr(retrieval, 'collection', lambda: vector_collection)
+    monkeypatch.setattr(retrieval, 'connect', fake_connect)
+
+    result = retrieval.delete_document('policy-one')
+
+    assert result == {
+        'doc_id': 'policy-one',
+        'deleted_chunks': 1,
+        'deleted_rules': 1,
+        'deleted_file': True,
+    }
+    assert not document_path.exists()
+    assert 'chunk-one' not in vector_collection.records
+    assert 'chunk-two' in vector_collection.records
+    assert database.execute(
+        'SELECT COUNT(*) FROM source_register WHERE doc_id=?', ('policy-one',)
+    ).fetchone()[0] == 0
+    assert database.execute(
+        'SELECT COUNT(*) FROM rule_registry WHERE source_doc_id=?', ('policy-one',)
+    ).fetchone()[0] == 0
+    assert database.execute(
+        'SELECT COUNT(*) FROM rule_registry WHERE source_doc_id=?', ('other-policy',)
+    ).fetchone()[0] == 1
+
+
+def test_delete_document_rejects_registered_path_outside_documents_directory(
+    tmp_path, monkeypatch
+):
+    docs_dir = tmp_path / 'documents'
+    docs_dir.mkdir()
+    outside_file = tmp_path / 'outside.txt'
+    outside_file.write_text('Do not delete.', encoding='utf-8')
+    database = sqlite3.connect(':memory:')
+    database.row_factory = sqlite3.Row
+    database.execute(
+        'CREATE TABLE source_register (doc_id TEXT PRIMARY KEY, filename TEXT NOT NULL)'
+    )
+    database.execute('CREATE TABLE rule_registry (source_doc_id TEXT NOT NULL)')
+    database.execute(
+        "INSERT INTO source_register VALUES ('policy-one', '../outside.txt')"
+    )
+
+    @contextmanager
+    def fake_connect():
+        yield database
+
+    monkeypatch.setattr(retrieval, 'DOCS_DIR', docs_dir)
+    monkeypatch.setattr(retrieval, 'connect', fake_connect)
+
+    with pytest.raises(ValueError, match='outside the documents directory'):
+        retrieval.delete_document('policy-one')
+
+    assert outside_file.read_text(encoding='utf-8') == 'Do not delete.'

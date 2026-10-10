@@ -1,0 +1,4 @@
+doc_id,filename,authority_level,category,scope_tiers,effective_from,effective_to,version,source_url,synthetic,supersedes
+RET-TERMS-2026,1_Return_Refund_Policy.txt,1,GENERAL,ALL,2026-01-01,,1.0,,Y,
+RET-WARRANTY-2026,2_Warranty_Policy.txt,1,GENERAL,ALL,2026-01-01,,1.0,,Y,
+RET-SHIPPING-2026,3_Shipping_FAQ.txt,4,GENERAL,ALL,2026-01-01,,1.0,,Y,

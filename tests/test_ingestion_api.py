@@ -81,3 +81,49 @@ def test_batch_ingest_rejects_path_traversal_doc_id(api_client):
     )
 
     assert response.status_code == 422
+
+
+def test_delete_document_requires_admin_password(api_client):
+    response = api_client.delete('/sources/RETURNS-2026')
+
+    assert response.status_code == 401
+
+
+def test_delete_document_returns_deleted_resources(api_client, monkeypatch):
+    monkeypatch.setattr(
+        main,
+        'delete_document',
+        lambda doc_id: {
+            'doc_id': doc_id,
+            'deleted_chunks': 2,
+            'deleted_rules': 1,
+            'deleted_file': True,
+        },
+    )
+
+    response = api_client.delete(
+        '/sources/RETURNS-2026',
+        headers={'X-Admin-Password': 'test-admin-password'},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        'doc_id': 'RETURNS-2026',
+        'deleted_chunks': 2,
+        'deleted_rules': 1,
+        'deleted_file': True,
+    }
+
+
+def test_delete_unknown_document_returns_404(api_client, monkeypatch):
+    def missing_document(doc_id):
+        raise FileNotFoundError(doc_id)
+
+    monkeypatch.setattr(main, 'delete_document', missing_document)
+
+    response = api_client.delete(
+        '/sources/UNKNOWN-2026',
+        headers={'X-Admin-Password': 'test-admin-password'},
+    )
+
+    assert response.status_code == 404

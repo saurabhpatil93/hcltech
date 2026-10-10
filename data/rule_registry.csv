@@ -1,0 +1,8 @@
+rule_id,description,parameter,operator,value,scope_categories,scope_tiers,effective_from,effective_to,source_doc_id,source_section
+RET-WIN-ELEC-01,Electronics return window,return_window_days,<=,30,ELECTRONICS,ALL,2026-01-01,,RET-TERMS-2026,3.1
+RET-WIN-FASHION-01,Fashion return window,return_window_days,<=,14,FASHION,ALL,2026-01-01,,RET-TERMS-2026,3.2
+RET-WIN-HOME-01,Home return window,return_window_days,<=,14,HOME,ALL,2026-01-01,,RET-TERMS-2026,3.2
+RET-NR-BEAUTY-01,Beauty non-returnable,non_returnable,=,1,BEAUTY,ALL,2026-01-01,,RET-TERMS-2026,3.2
+RET-NR-GROCERY-01,Grocery non-returnable,non_returnable,=,1,GROCERY,ALL,2026-01-01,,RET-TERMS-2026,3.2
+RET-FEE-ALL-01,No general restocking fee,restocking_fee_pct,=,0,ALL,ALL,2026-01-01,,RET-TERMS-2026,4.1
+RET-APPROVAL-01,Human approval threshold,auto_refund_limit,<=,10000,ALL,ALL,2026-01-01,,RET-TERMS-2026,5.1

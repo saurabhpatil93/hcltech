@@ -1,7 +1,7 @@
 from pathlib import Path
 import hashlib, chromadb
 from sentence_transformers import SentenceTransformer
-from app.config import CHROMA_DIR,RETRIEVAL_TOP_K
+from app.config import CHROMA_DIR, DOCS_DIR, RETRIEVAL_TOP_K
 from app.db import connect
 _MODEL=None
 def embedder():
@@ -40,6 +40,28 @@ def ingest_file(path,meta):
  if stale_ids: col.delete(ids=list(stale_ids))
  with connect() as c: c.execute('INSERT INTO source_register VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(doc_id) DO UPDATE SET filename=excluded.filename,authority_level=excluded.authority_level,effective_from=excluded.effective_from,effective_to=excluded.effective_to,version=excluded.version,supersedes=excluded.supersedes',(meta['doc_id'],path.name,int(meta['authority_level']),meta.get('category','GENERAL'),meta.get('scope_tiers','ALL'),meta['effective_from'],meta.get('effective_to',''),meta.get('version','1.0'),meta.get('source_url',''),meta.get('synthetic','N'),meta.get('supersedes','')))
  return {'doc_id':meta['doc_id'],'chunks_indexed':len(chunks),'status':'indexed'}
+
+def delete_document(doc_id):
+ with connect() as c:
+  source=c.execute('SELECT filename FROM source_register WHERE doc_id=?',(doc_id,)).fetchone()
+  if not source: raise FileNotFoundError(f'Document not found: {doc_id}')
+  rules=c.execute('SELECT COUNT(*) FROM rule_registry WHERE source_doc_id=?',(doc_id,)).fetchone()[0]
+
+ path=(DOCS_DIR/source['filename']).resolve()
+ if path.parent != DOCS_DIR.resolve():
+  raise ValueError('Registered document path is outside the documents directory')
+ file_deleted=path.exists()
+ if file_deleted: path.unlink()
+
+ col=collection()
+ existing_ids=col.get(where={'doc_id':doc_id},include=['metadatas'])['ids']
+ if existing_ids: col.delete(ids=existing_ids)
+ with connect() as c:
+  c.execute('DELETE FROM rule_registry WHERE source_doc_id=?',(doc_id,))
+  c.execute('DELETE FROM source_register WHERE doc_id=?',(doc_id,))
+ return {'doc_id':doc_id,'deleted_chunks':len(existing_ids),'deleted_rules':rules,
+         'deleted_file':file_deleted}
+
 def search(q,asof,category='GENERAL',tier='STANDARD',k=None):
  col=collection()
  if not col.count(): return []

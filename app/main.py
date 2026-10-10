@@ -6,7 +6,7 @@ import hmac, json, re, uuid, time
 from app.config import ADMIN_PASSWORD, DOCS_DIR, OLLAMA_BASE_URL, OLLAMA_MODEL, MOCK_LLM, AUDIT_PATH
 from app.db import init_db, connect
 from app.schemas import AskRequest, AskResponse, HealthResponse
-from app.services.retrieval import ingest_file, collection
+from app.services.retrieval import delete_document, ingest_file, collection
 from app.graph import assistant_graph
 
 app = FastAPI(title='Retail AI Support Agent', version='1.0.0')
@@ -183,6 +183,18 @@ def sources():
     with connect() as c:
         rows = c.execute('SELECT * FROM source_register ORDER BY effective_from DESC').fetchall()
     return {'sources': [dict(r) for r in rows]}
+
+
+@app.delete('/sources/{doc_id}')
+def remove_source(doc_id: str,
+                  x_admin_password: Optional[str] = Header(default=None, alias='X-Admin-Password')):
+    require_admin(x_admin_password)
+    if not DOC_ID_PATTERN.fullmatch(doc_id):
+        raise HTTPException(422, 'Invalid document ID.')
+    try:
+        return delete_document(doc_id)
+    except FileNotFoundError:
+        raise HTTPException(404, 'Document not found.')
 
 
 @app.get('/audit/{trace_id}')
